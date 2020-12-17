@@ -1,3 +1,10 @@
+"""
+to update deployment
+zip es_search_deployment.zip search.py
+
+aws --profile innogeo lambda update-function-code --function-name search_es --zip-file fileb://es_search_deployment.zip
+"""
+import base64
 import boto3
 import json
 import os
@@ -18,22 +25,34 @@ def handler(event, context):
 
     # Put the user query into the query DSL for more accurate search results.
     # Note that certain fields are boosted (^).
-    query = {
-        "size": 100,
-        "query": {
-            "multi_match": {
-                "query": event['queryStringParameters']['q'],
-                "fields": ["paper_title^4", "fos_name^2", "affiliation_name", "author_name"]
+    print(event)
+    if "queryStringParameters" in event:
+        query = {
+            "size": 100,
+            "query": {
+                "multi_match": {
+                    "query": event['queryStringParameters']['q'],
+                    "fields": ["paper_title^4", "fos_name^2", "affiliation_name", "author_name"]
+                }
             }
         }
-    }
+    else:
+        if event.get("isBase64Encoded", False):
+            data = json.loads(base64.b64decode(event["body"]))
+        else:
+            data = json.loads(event["body"])
+        print(data)
+        query = {
+            "size": data["size"],
+            "query": data["query"]
+        }
 
     # ES 6.x requires an explicit Content-Type header
     headers = { "Content-Type": "application/json" }
 
     # Make the signed HTTP request
     auth = (os.environ["ES_USER"], os.environ["ES_PW"])
-    r = requests.get(url, auth=auth, headers=headers, data=json.dumps(query))
+    r = requests.post(url, auth=auth, headers=headers, data=json.dumps(query))
 
     # Create the response and add some extra content to support CORS
     response = {
