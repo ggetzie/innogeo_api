@@ -46,6 +46,8 @@ def handler(event, context):
             "size": data["size"],
             "query": data["query"]
         }
+        if "sort" in data:
+            query["sort"] = data["sort"]
 
     # ES 6.x requires an explicit Content-Type header
     headers = { "Content-Type": "application/json" }
